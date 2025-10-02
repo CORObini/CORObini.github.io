@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YSK후각훈련키트(기록일지)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        /* 커스텀 스타일 */
+        .pastel-bg { background-color: #FEFBF6; }
+        #landingPage {
+            background-image: url('[크기변환]TOUCH250203-44.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+
+        .btn-primary {
+            background-color: #A8D8B9;
+            color: white;
+            transition: background-color 0.3s;
+        }
+        .btn-primary:hover {
+            background-color: #97C6A8;
+        }
+        .tab-btn {
+            border-bottom: 4px solid transparent;
+        }
+        .tab-btn.active {
+            border-bottom-color: #A8D8B9;
+            color: #333;
+            font-weight: 700;
+        }
+        .intensity-btn.selected {
+            background-color: #A8D8B9;
+            color: white;
+            transform: scale(1.1);
+        }
+        .chart-container {
+            position: relative;
+            height: 40vh;
+            width: 100%;
+        }
+        nav.scrolled {
+            background-color: #F0F8FF; /* 파스텔 블루 */
+            transition: background-color 0.3s ease-in-out;
+        }
+        .modal-overlay {
+            transition: opacity 0.3s ease;
+        }
+    </style>
+</head>
+<body class="pastel-bg text-gray-800">
+
+    <!-- 90일 완료 축하 팝업 -->
+    <div id="completionModal" class="modal-overlay hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl shadow-xl p-6 sm:p-8 w-full max-w-sm text-center transform transition-transform duration-300 scale-95">
+            <h3 class="text-2xl font-bold mb-4">🎉 축하합니다!</h3>
+            <p class="text-lg font-bold mb-4">90일 훈련을 완수하셨습니다!</p>
+            <div class="text-gray-700 space-y-3 mb-6 font-bold">
+                <p>꾸준한 노력으로 90일간의 훈련을 성공적으로 마치셨습니다. 정말 대단해요!</p>
+                <p>후각 재활 훈련은 꾸준함이 가장 중요합니다. 만약 원하시는 만큼 회복이 되지 않았다면, 다른 키트로 추가 훈련을 이어가는 것을 권장합니다.</p>
+                <p>당신의 노력을 항상 응원합니다!</p>
+            </div>
+            <button id="closeCompletionModal" class="w-full btn-primary font-bold py-3 rounded-lg text-lg">확인</button>
+        </div>
+    </div>
+
+
+    <!-- 메시지 알림용 요소 -->
+    <div id="toastMessage" class="hidden fixed top-5 right-5 bg-green-500 text-white py-2 px-4 rounded-lg shadow-xl transition-opacity duration-300 z-50">
+        <!-- 성공 메시지 동적 삽입 -->
+    </div>
+    <div id="errorMessage" class="hidden fixed top-5 right-5 bg-red-500 text-white py-2 px-4 rounded-lg shadow-xl transition-opacity duration-300 z-50">
+        <!-- 에러 메시지 동적 삽입 -->
+    </div>
+
+
+    <!-- 랜딩 페이지 (최초 접속 시) -->
+    <div id="landingPage" class="min-h-screen flex flex-col items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg">
+            <h1 class="text-2xl font-bold text-center mb-2">YSK후각훈련키트</h1>
+            <p class="text-center text-gray-600 mb-6 font-bold">(기록일지)</p>
+            
+            <div class="mb-6">
+                <label for="userNameInput" class="block text-lg font-bold mb-2">이름을 입력해주세요</label>
+                <input type="text" id="userNameInput" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-400 focus:border-transparent" placeholder="홍길동">
+            </div>
+            
+            <button id="nextBtn" class="w-full btn-primary font-bold py-3 rounded-lg text-lg mt-8">시작하기</button>
+        </div>
+    </div>
+
+    <!-- 메인 앱 페이지 -->
+    <div id="mainAppPage" class="hidden w-full max-w-2xl mx-auto bg-white min-h-screen shadow-2xl">
+        <header class="p-4 sticky top-0 bg-white shadow-md z-30">
+            <h2 class="text-xl font-bold"><span id="userNameDisplay"></span>님, 안녕하세요!</h2>
+        </header>
+
+        <!-- 탭 네비게이션 -->
+        <nav id="mainNav" class="flex justify-around border-b border-gray-200 sticky top-[68px] bg-white z-20">
+            <button class="tab-btn py-3 px-4 text-gray-500 font-bold flex-1 text-center" data-tab="howToUse">사용방법</button>
+            <button class="tab-btn py-3 px-4 text-gray-500 font-bold flex-1 text-center" data-tab="training">훈련하기</button>
+            <button class="tab-btn py-3 px-4 text-gray-500 font-bold flex-1 text-center" data-tab="record">훈련기록</button>
+        </nav>
+
+        <main class="p-4 sm:p-6">
+            <!-- 1. 사용방법 -->
+            <div id="howToUseContent" class="tab-content space-y-6">
+                <h3 class="text-xl font-bold mb-4">YSK후각훈련키트 사용방법</h3>
+                <div class="space-y-4 text-gray-700">
+                    <div class="p-4 rounded-lg bg-green-50">
+                        <h4 class="text-lg font-bold mb-2">- 후각훈련이란?</h4>
+                        <p class="font-bold text-base leading-relaxed">후각훈련은 후각 기능이 저하되거나 상실된 경우 후각을 회복시키기 위한 재활 훈련법으로, 꾸준한 냄새 자극과 집중을 통해 후각 신경과 뇌의 기능을 활성화시키는 방법입니다.</p>
+                    </div>
+                    <div class="p-4 rounded-lg bg-orange-50">
+                        <h4 class="text-lg font-bold mb-2">- 주의사항</h4>
+                        <ul class="list-none space-y-2 font-bold text-base">
+                            <li class="leading-relaxed">• 최소 6개월 이상 꾸준한 훈련을 권장드립니다.</li>
+                            <li class="leading-relaxed">• 냄새를 맡을 때 집중하여 냄새를 인지하려 노력하시는 게 중요합니다.</li>
+                            <li class="leading-relaxed">• 훈련 전 가까운 지인의 도움으로 향에 대해서 설명을 들으시면 연상하는데 도움이 됩니다.</li>
+                        </ul>
+                    </div>
+                    <div class="p-4 rounded-lg bg-violet-50">
+                        <h4 class="text-lg font-bold mb-2">- 후각훈련 방법</h4>
+                        <div class="space-y-3 font-bold text-base">
+                            <div class="leading-relaxed">
+                                <p class="font-bold">1) 훈련 시간과 주기</p>
+                                <p class="ml-4">하루 10~20분씩, 오전과 오후 하루 두 번 훈련합니다.</p>
+                            </div>
+                            <div class="leading-relaxed">
+                                <p class="font-bold">2) 훈련 방법</p>
+                                <p class="ml-4">각 향기를 10~15초간 깊게 맡은 후, [훈련하기 탭] 후각인지강도를 선택하여 주시면 됩니다. 향기 사이에는 10~15초 정도 휴식을 취하며 냄새가 남아있지 않도록 합니다. 4가지 향을 순서대로 맡는 것을 1세트로 하여 하루 2회 반복합니다.</p>
+                            </div>
+                            <div class="leading-relaxed">
+                                <p class="font-bold">3) 강도 평가 기준</p>
+                                <ul class="list-none ml-4 space-y-1">
+                                    <li><strong>0:</strong> 전혀 느껴지지 않음</li>
+                                    <li><strong>1:</strong> 아주 약하게 느껴짐</li>
+                                    <li><strong>2:</strong> 약하게 느껴짐</li>
+                                    <li><strong>3:</strong> 보통 강도로 느껴짐</li>
+                                    <li><strong>4:</strong> 강하게 느껴짐</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 훈련하기 -->
+            <div id="trainingContent" class="tab-content hidden">
+                 <div class="text-center mb-6">
+                    <p class="text-lg font-bold mb-3">훈련할 키트를 선택해주세요.</p>
+                    <div id="trainingKitSelector" class="inline-flex rounded-lg shadow-sm" role="group">
+                         <!-- 키트 선택 버튼 동적 생성 -->
+                    </div>
+                </div>
+
+                <div class="text-center mb-6">
+                    <p class="text-lg font-bold mb-3">훈련 시간대를 선택해주세요.</p>
+                    <div id="sessionSelector" class="inline-flex rounded-lg shadow-sm" role="group">
+                        <!-- 시간대 선택 버튼 동적 생성 -->
+                    </div>
+                </div>
+                
+                <div id="scentTrainingContainer" class="space-y-6">
+                    <!-- 향기 훈련 항목이 동적으로 추가됩니다 -->
+                </div>
+
+                <button id="saveTrainingBtn" class="w-full btn-primary font-bold py-3 rounded-lg text-lg mt-8">저장하기</button>
+            </div>
+
+            <!-- 3. 훈련기록 -->
+            <div id="recordContent" class="tab-content hidden space-y-8">
+                <div>
+                     <h3 class="text-xl font-bold mb-4">기록 조회 키트 선택</h3>
+                     <div id="recordKitSelector" class="flex flex-wrap gap-2 mb-6">
+                         <!-- 기록 조회용 키트 버튼 동적 생성 -->
+                     </div>
+                </div>
+                <div id="recordDetails" class="hidden">
+                    <h3 class="text-xl font-bold mb-4">훈련 진행 상황</h3>
+                    <div class="bg-green-50 p-4 rounded-xl grid grid-cols-2 gap-4">
+                        <div class="flex flex-col items-center justify-center">
+                            <div class="relative w-28 h-28">
+                                <svg class="w-full h-full" viewBox="0 0 36 36">
+                                    <path class="text-gray-200" stroke-width="3" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    <path id="progressCircle" class="text-green-500" stroke-width="3" fill="none" stroke-linecap="round" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                </svg>
+                                <div id="progressPercent" class="absolute inset-0 flex items-center justify-center text-2xl font-bold">0%</div>
+                            </div>
+                        </div>
+                        <div class="space-y-1 font-bold text-sm">
+                            <p>시작일: <span id="startDate" class="font-normal"></span></p>
+                            <p>완료예정일: <span id="endDate" class="font-normal"></span></p>
+                            <p>남은기간: <span id="daysLeft" class="font-normal"></span></p>
+                            <p>진행횟수: <span id="sessionsDone" class="font-normal"></span></p>
+                            <p>미진행횟수: <span id="sessionsMissed" class="font-normal"></span></p>
+                        </div>
+                    </div>
+
+                    <h3 class="text-xl font-bold mt-8 mb-4">훈련 결과 그래프</h3>
+                    <div class="mb-4">
+                        <div id="chartFilterContainer" class="flex flex-wrap gap-2">
+                             <!-- 필터 버튼이 동적으로 추가됩니다 -->
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="recordChart"></canvas>
+                    </div>
+                </div>
+                 <div id="noRecordMessage" class="text-center py-10 bg-gray-50 rounded-lg">
+                    <p class="font-bold text-gray-500">선택한 키트에 대한 훈련 기록이 없습니다.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // DOM 요소 가져오기
+            const body = document.body;
+            const landingPage = document.getElementById('landingPage');
+            const mainAppPage = document.getElementById('mainAppPage');
+            const nextBtn = document.getElementById('nextBtn');
+            const userNameInput = document.getElementById('userNameInput');
+            const userNameDisplay = document.getElementById('userNameDisplay');
+            const scentTrainingContainer = document.getElementById('scentTrainingContainer');
+            const trainingKitSelector = document.getElementById('trainingKitSelector');
+            const sessionSelector = document.getElementById('sessionSelector');
+            const recordKitSelector = document.getElementById('recordKitSelector');
+            const saveTrainingBtn = document.getElementById('saveTrainingBtn');
+            const toastMessage = document.getElementById('toastMessage');
+            const errorMessage = document.getElementById('errorMessage');
+            const recordDetails = document.getElementById('recordDetails');
+            const noRecordMessage = document.getElementById('noRecordMessage');
+            const mainNav = document.getElementById('mainNav');
+            const header = document.querySelector('header');
+            const completionModal = document.getElementById('completionModal');
+            const closeCompletionModal = document.getElementById('closeCompletionModal');
+
+
+            const KITS = {
+                '1': ['오렌지', '클로브', '라벤더', '시더우드'],
+                '2': ['레몬', '일랑일랑', '솔향', '바닐라'],
+                '3': ['꿀', '오이', '바나나', '딸기']
+            };
+            const TOTAL_SESSIONS = 180; // 90일 * 2회
+
+            const scentColors = {
+                '오렌지': 'bg-orange-100', '클로브': 'bg-amber-200', '라벤더': 'bg-purple-100', '시더우드': 'bg-lime-100',
+                '레몬': 'bg-yellow-100', '일랑일랑': 'bg-yellow-200', '솔향': 'bg-green-100', '바닐라': 'bg-stone-100',
+                '꿀': 'bg-amber-100', '오이': 'bg-emerald-100', '바나나': 'bg-yellow-100', '딸기': 'bg-pink-100'
+            };
+            const intensityDescriptions = { 0: '향이안남', 1: '아주약함', 2: '약함', 3: '보통', 4: '강함' };
+
+            let userData = {};
+            let recordChart = null;
+            let currentTrainingKit = '1';
+            let currentRecordKit = '1';
+            let currentSession = null;
+
+            // 앱 초기화 함수
+            function initializeApp() {
+                const storedData = localStorage.getItem('olfactoryTrainingData');
+                if (storedData) {
+                    userData = JSON.parse(storedData);
+                    if (!userData.records) userData.records = [];
+                    if (!userData.completionNotified) userData.completionNotified = {};
+                    landingPage.classList.add('hidden');
+                    mainAppPage.classList.remove('hidden');
+                    setupMainApp();
+                } else {
+                    landingPage.classList.remove('hidden');
+                    mainAppPage.classList.add('hidden');
+                }
+            }
+            
+            nextBtn.addEventListener('click', () => {
+                const name = userNameInput.value.trim();
+                if (!name) {
+                    showToast('이름을 입력해주세요.', true);
+                    return;
+                }
+                userData = { name: name, records: [], completionNotified: {} };
+                localStorage.setItem('olfactoryTrainingData', JSON.stringify(userData));
+                initializeApp();
+            });
+
+            function setupMainApp() {
+                userNameDisplay.textContent = userData.name;
+                setupTabs();
+                renderTrainingPage(currentTrainingKit);
+                renderRecordPage(currentRecordKit);
+            }
+            
+            function setupTabs() {
+                const tabButtons = document.querySelectorAll('.tab-btn');
+                const tabContents = document.querySelectorAll('.tab-content');
+                
+                const defaultTab = 'training';
+                tabContents.forEach(c => c.classList.add('hidden'));
+                document.querySelector(`.tab-btn[data-tab="${defaultTab}"]`).classList.add('active');
+                document.getElementById(`${defaultTab}Content`).classList.remove('hidden');
+
+                tabButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        const tab = button.dataset.tab;
+                        tabButtons.forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+                        tabContents.forEach(content => content.classList.add('hidden'));
+                        document.getElementById(`${tab}Content`).classList.remove('hidden');
+                        
+                        if (tab === 'training') renderTrainingPage(currentTrainingKit);
+                        if (tab === 'record') renderRecordPage(currentRecordKit);
+                    });
+                });
+            }
+
+            function renderSessionSelector() {
+                sessionSelector.innerHTML = ['오전', '오후'].map(session => {
+                    const isActive = session === currentSession;
+                    const activeClasses = 'bg-green-100 text-green-700 border-green-300 z-10';
+                    const inactiveClasses = 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50';
+                    return `
+                        <button data-session="${session}" class="py-2 px-6 font-bold relative inline-flex items-center border -ml-px first:ml-0 first:rounded-l-lg last:rounded-r-lg ${isActive ? activeClasses : inactiveClasses}">
+                            ${session}
+                        </button>
+                    `;
+                }).join('');
+
+                sessionSelector.querySelectorAll('button').forEach(button => {
+                    button.addEventListener('click', e => {
+                        const sessionButton = e.target.closest('[data-session]');
+                        if (currentSession === sessionButton.dataset.session) {
+                            currentSession = null; // Toggle off
+                        } else {
+                            currentSession = sessionButton.dataset.session;
+                        }
+                        renderSessionSelector();
+                    });
+                });
+            }
+            
+            function renderTrainingPage(kitNumber) {
+                currentTrainingKit = kitNumber;
+                currentSession = null; // Reset session on kit change
+                renderSessionSelector();
+                
+                trainingKitSelector.innerHTML = Object.keys(KITS).map(kit => {
+                    const isActive = kit === kitNumber;
+                    const activeClasses = 'bg-green-100 text-green-700 border-green-300 z-10';
+                    const inactiveClasses = 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50';
+                    return `<button data-kit="${kit}" class="py-2 px-6 font-bold relative inline-flex items-center border -ml-px first:ml-0 first:rounded-l-lg last:rounded-r-lg ${isActive ? activeClasses : inactiveClasses}">키트 ${kit}</button>`;
+                }).join('');
+
+                trainingKitSelector.querySelectorAll('button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const kitButton = e.target.closest('[data-kit]');
+                        if (kitButton && kitButton.dataset.kit !== currentTrainingKit) {
+                            renderTrainingPage(kitButton.dataset.kit);
+                        }
+                    });
+                });
+
+                const scents = KITS[kitNumber];
+                scentTrainingContainer.innerHTML = '';
+                scents.forEach((scent, index) => {
+                    const bgColor = scentColors[scent] || 'bg-gray-50';
+                    const scentBlock = `
+                        <div class="${bgColor} p-4 rounded-lg shadow-sm">
+                            <p class="text-lg font-bold mb-4 text-center">${scent}</p>
+                            <div class="flex justify-around items-start text-center" data-scent-index="${index}">
+                                ${[0, 1, 2, 3, 4].map(level => `
+                                    <div class="flex flex-col items-center">
+                                        <button class="intensity-btn w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center rounded-full border-2 border-gray-300 bg-white font-bold text-lg transition-transform duration-200" data-value="${level}">
+                                            ${level}
+                                        </button>
+                                        <p class="text-xs font-bold text-gray-600 mt-2">${intensityDescriptions[level]}</p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                    scentTrainingContainer.insertAdjacentHTML('beforeend', scentBlock);
+                });
+
+                scentTrainingContainer.querySelectorAll('.intensity-btn').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const parent = e.target.closest('.flex');
+                        parent.querySelectorAll('.intensity-btn').forEach(btn => btn.classList.remove('selected'));
+                        e.target.classList.add('selected');
+                    });
+                });
+            }
+
+            saveTrainingBtn.addEventListener('click', () => {
+                const today = new Date().toISOString().split('T')[0];
+                
+                const alreadyExists = userData.records.some(record => record.date === today && record.time === currentSession && record.kit === currentTrainingKit);
+                if (alreadyExists) {
+                    showToast('오늘 해당 키트와 시간의 기록이 이미 존재합니다.', true);
+                    return;
+                }
+                
+                if (!currentSession) {
+                    showToast('선택안된 항목이 있습니다.', true);
+                    return;
+                }
+
+                const intensities = [];
+                const scentContainers = scentTrainingContainer.querySelectorAll('[data-scent-index]');
+                let allSelected = true;
+
+                scentContainers.forEach(container => {
+                    const selectedBtn = container.querySelector('.intensity-btn.selected');
+                    if (selectedBtn) {
+                        intensities.push(parseInt(selectedBtn.dataset.value));
+                    } else {
+                        allSelected = false;
+                    }
+                });
+
+                if (!allSelected) {
+                    showToast('선택안된 항목이 있습니다.', true);
+                    return;
+                }
+
+                userData.records.push({ date: today, time: currentSession, kit: currentTrainingKit, intensities: intensities });
+                localStorage.setItem('olfactoryTrainingData', JSON.stringify(userData));
+                showToast('훈련이 완료되었습니다.');
+                renderTrainingPage(currentTrainingKit); // Reset the training page
+            });
+
+            function renderRecordPage(kitNumber) {
+                currentRecordKit = kitNumber;
+
+                recordKitSelector.innerHTML = Object.keys(KITS).map(kit => `
+                    <button class="px-4 py-2 text-sm font-bold rounded-full transition ${kit === kitNumber ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'}" data-kit="${kit}">
+                        키트 ${kit}
+                    </button>
+                `).join('');
+
+                recordKitSelector.querySelectorAll('button').forEach(button => {
+                    button.addEventListener('click', (e) => renderRecordPage(e.target.dataset.kit));
+                });
+
+                const kitRecords = userData.records.filter(r => r.kit === kitNumber);
+
+                if (kitRecords.length === 0) {
+                    recordDetails.classList.add('hidden');
+                    noRecordMessage.classList.remove('hidden');
+                    return;
+                }
+
+                recordDetails.classList.remove('hidden');
+                noRecordMessage.classList.add('hidden');
+
+                const sessionsDone = kitRecords.length;
+                const progress = Math.min(100, Math.round((sessionsDone / TOTAL_SESSIONS) * 100));
+                
+                const firstRecordDate = kitRecords.sort((a, b) => new Date(a.date) - new Date(b.date))[0].date;
+                const startDate = new Date(firstRecordDate);
+                const endDate = new Date(startDate);
+                endDate.setDate(startDate.getDate() + 90);
+                const today = new Date();
+                const daysLeft = Math.max(0, Math.ceil((endDate - today) / (1000 * 60 * 60 * 24)));
+                const daysPassed = Math.ceil((today - startDate) / (1000 * 60 * 60 * 24));
+                const expectedSessions = daysPassed > 90 ? 180 : Math.max(0, (daysPassed + 1) * 2);
+                
+                document.getElementById('progressPercent').textContent = `${progress}%`;
+                document.getElementById('progressCircle').setAttribute('stroke-dasharray', `${progress}, 100`);
+                document.getElementById('startDate').textContent = startDate.toISOString().split('T')[0];
+                document.getElementById('endDate').textContent = endDate.toISOString().split('T')[0];
+                document.getElementById('daysLeft').textContent = `${daysLeft}일`;
+                document.getElementById('sessionsDone').textContent = `${sessionsDone}회`;
+                document.getElementById('sessionsMissed').textContent = `${Math.max(0, expectedSessions - sessionsDone)}회`;
+
+                renderChart(kitNumber);
+                
+                // 90일 완료 체크
+                if (sessionsDone >= TOTAL_SESSIONS && !userData.completionNotified[kitNumber]) {
+                    showCompletionModal(kitNumber);
+                }
+            }
+            
+            function renderChart(kitNumber, filterScent = '전체') {
+                const scents = KITS[kitNumber];
+                const chartFilterContainer = document.getElementById('chartFilterContainer');
+                
+                chartFilterContainer.innerHTML = '';
+                ['전체', ...scents].forEach(scent => {
+                    const button = document.createElement('button');
+                    button.textContent = scent;
+                    button.className = `px-3 py-1 text-sm font-bold rounded-full transition ${scent === filterScent ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'}`;
+                    button.dataset.scent = scent;
+                    button.addEventListener('click', () => renderChart(kitNumber, scent));
+                    chartFilterContainer.appendChild(button);
+                });
+                
+                const kitRecords = userData.records.filter(r => r.kit === kitNumber);
+                const groupedRecords = kitRecords.reduce((acc, record) => {
+                    if (!acc[record.date]) acc[record.date] = [];
+                    acc[record.date].push(record.intensities);
+                    return acc;
+                }, {});
+
+                const labels = Object.keys(groupedRecords).sort();
+                const datasets = [];
+                const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
+                
+                if (filterScent === '전체') {
+                    scents.forEach((scent, index) => {
+                        datasets.push({
+                            label: scent,
+                            data: labels.map(date => {
+                                const dayRecords = groupedRecords[date];
+                                const sum = dayRecords.reduce((total, rec) => total + rec[index], 0);
+                                return sum / dayRecords.length;
+                            }),
+                            borderColor: colors[index], backgroundColor: colors[index] + '33',
+                            tension: 0.1, borderWidth: 2, pointRadius: 3, pointHoverRadius: 6,
+                        });
+                    });
+                } else {
+                    const scentIndex = scents.indexOf(filterScent);
+                    datasets.push({
+                        label: filterScent,
+                        data: labels.map(date => {
+                            const dayRecords = groupedRecords[date];
+                            const sum = dayRecords.reduce((total, rec) => total + rec[scentIndex], 0);
+                            return sum / dayRecords.length;
+                        }),
+                        borderColor: colors[scentIndex], backgroundColor: colors[scentIndex] + '33',
+                        tension: 0.1, borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 8,
+                    });
+                }
+                
+                const ctx = document.getElementById('recordChart').getContext('2d');
+                if (recordChart) recordChart.destroy();
+                recordChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels, datasets },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        scales: {
+                            y: { beginAtZero: true, max: 4, ticks: { stepSize: 1, font: { weight: 'bold' } } },
+                            x: { ticks: { font: { weight: 'bold' }, autoSkip: true, maxTicksLimit: 10 } }
+                        },
+                        plugins: {
+                            legend: { position: 'top', labels: { font: { weight: 'bold' } } },
+                            zoom: { pan: { enabled: true, mode: 'x' }, zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: 'x' } },
+                            tooltip: {
+                                titleFont: { weight: 'bold' }, bodyFont: { weight: 'bold' },
+                                callbacks: {
+                                    label: context => `${context.dataset.label || ''}: ${context.parsed.y !== null ? context.parsed.y.toFixed(1) : ''}`
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            function showToast(message, isError = false) {
+                const toast = isError ? errorMessage : toastMessage;
+                toast.textContent = message;
+                toast.classList.remove('hidden');
+                setTimeout(() => toast.classList.add('hidden'), 2000); // 2초 후 사라짐
+            }
+
+            function showCompletionModal(kitNumber) {
+                completionModal.classList.remove('hidden');
+                setTimeout(() => {
+                    completionModal.classList.remove('opacity-0');
+                    completionModal.querySelector('.transform').classList.remove('scale-95');
+                }, 10); // for transition
+                
+                userData.completionNotified[kitNumber] = true;
+                localStorage.setItem('olfactoryTrainingData', JSON.stringify(userData));
+            }
+
+            closeCompletionModal.addEventListener('click', () => {
+                completionModal.classList.add('opacity-0');
+                completionModal.querySelector('.transform').classList.add('scale-95');
+                setTimeout(() => {
+                    completionModal.classList.add('hidden');
+                }, 300); // match transition duration
+            });
+
+
+            // 스크롤 이벤트 추가
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > header.offsetHeight) {
+                    mainNav.classList.add('scrolled');
+                } else {
+                    mainNav.classList.remove('scrolled');
+                }
+            });
+
+            initializeApp();
+        });
+    </script>
+</body>
+</html>
+
